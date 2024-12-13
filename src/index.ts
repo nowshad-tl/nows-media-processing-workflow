@@ -1,10 +1,11 @@
 import { batch, logger, schemaTask } from "@trigger.dev/sdk/v3";
-import { convertToMp3Task } from "./tasks/parseAudio";
+import { parseAudioTask } from "./tasks/parseAudio";
 import { transcribeAudioTask } from "./tasks/transcribe";
 import { generateSrtTask } from "./tasks/generateSRT";
 import { z } from "zod";
 import { notifySlackTask } from "./tasks/notifySlack";
 import { sendEmailTask } from "./tasks/sendEmail";
+import { downloadVideoTask } from "./tasks/downloadVideo";
 
 export const processVideoTask = schemaTask({
   id: "process-video",
@@ -31,21 +32,29 @@ export const processVideoTask = schemaTask({
       return { status: "failed", reason: "Invalid video format" };
     }
 
+    const downloadResult = await downloadVideoTask.triggerAndWait({ videoUrl });
+    if (!downloadResult.ok) {
+      logger.error("Failed to download video", { downloadResult, timestamp: new Date().toISOString() });
+      return { status: "failed", reason: "Failed to download video" };
+    }
+
+    const downloadedVideoUrl = downloadResult.output.videoUrl;
+
     logger.info("Video URL validated successfully", { videoUrl, timestamp: new Date().toISOString() });
 
     try {
-      const convertResult = await convertToMp3Task.triggerAndWait({ videoUrl });
+      const parseAudioResult = await parseAudioTask.triggerAndWait({ videoUrl: downloadedVideoUrl });
 
-      if (!convertResult.ok) {
-        logger.error("Failed to convert video to MP3", { convertResult, timestamp: new Date().toISOString() });
+      if (!parseAudioResult.ok) {
+        logger.error("Failed to convert video to MP3", { parseAudioResult, timestamp: new Date().toISOString() });
         return { status: "failed", reason: "Failed to convert video to MP3" };
       }
 
-      const mp3File = convertResult.output.mp3File;
-      const duration = convertResult.output.duration;
+      const mp3File = parseAudioResult.output.mp3File;
+      const duration = parseAudioResult.output.duration;
 
       if (!mp3File) {
-        logger.error("Failed to convert video to MP3", { convertResult, timestamp: new Date().toISOString() });
+        logger.error("Failed to convert video to MP3", { parseAudioResult, timestamp: new Date().toISOString() });
         return { status: "failed", reason: "Failed to convert video to MP3" };
       }
 

@@ -8,7 +8,7 @@ export const downloadVideoTask = schemaTask({
     videoUrl: z.string().url(),
   }),
 
-  run: async (input: { videoUrl: string }, { ctx }) : Promise<{ videoBase64: string }> => {
+  run: async (input: { videoUrl: string }, { ctx }) : Promise<{ videoUrl: string }> => {
     const { videoUrl } = input;
     logger.info("Starting video download...", { videoUrl });
 
@@ -24,13 +24,12 @@ export const downloadVideoTask = schemaTask({
 
     // Convert ArrayBuffer to Buffer, then to base64 string
     const videoBuffer = Buffer.from(videoArrayBuffer);
-    const videoBase64 = videoBuffer.toString("base64");
 
     const s3Url = await uploadFileToS3('video/original.mp4', videoBuffer, "video/mp4");
     logger.info("Video uploaded to S3", { s3Url });
 
     logger.info("Video downloaded successfully", { size: videoBuffer.length });
 
-    return { videoBase64 };
+    return { videoUrl: s3Url };
   },
 });

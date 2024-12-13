@@ -5,8 +5,8 @@ import { extractMp3FromVideo } from "../utils/ffmpeg";
 import { downloadVideoTask } from "./downloadVideo";
 import { uploadFileToS3 } from "../utils/s3";
 
-export const convertToMp3Task = schemaTask({
-  id: "convert-to-mp3",
+export const parseAudioTask = schemaTask({
+  id: "parse-audio",
   schema: z.object({
     videoUrl: z.string(),
   }),
@@ -14,21 +14,16 @@ export const convertToMp3Task = schemaTask({
     const { videoUrl } = input;
     logger.info("Starting audio extraction from video", { videoUrl });
 
-    const result = await downloadVideoTask.triggerAndWait({ videoUrl: videoUrl });
-
-    if (!result.ok) {
-      logger.error("Failed to download video", { result });
-      return { status: "failed", reason: "Failed to download video" };
+    const response = await fetch(videoUrl);
+    if (!response.ok) {
+      logger.error("Failed to download video", { status: response.status, statusText: response.statusText });
+      throw new Error(`Failed to download video from ${videoUrl}`);
     }
 
-    const videoBase64 = result.output.videoBase64;
-    logger.info("Video downloaded successfully", { videoBase64 });
-
-    // Decode base64 video data to Buffer
-    const videoBuffer = Buffer.from(videoBase64, "base64");
+    const videoArrayBuffer = await response.arrayBuffer();
 
     try {
-      const { mp3Buffer, duration } = await extractMp3FromVideo(videoBuffer);
+      const { mp3Buffer, duration } = await extractMp3FromVideo(Buffer.from(videoArrayBuffer));
 
       logger.info("MP3 extraction successful", { duration, mp3Size: mp3Buffer.length });
 

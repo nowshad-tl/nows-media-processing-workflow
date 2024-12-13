@@ -1,4 +1,7 @@
+- Folder structure
+- Metadata handling
 - Proper error handling
 - Proper logging
 - SRT generation using utterance 
-- Refactor code for better usage
+- Failed cases with proper response
+- Add more metadata in email
