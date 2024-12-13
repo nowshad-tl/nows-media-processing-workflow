@@ -2,7 +2,7 @@
 import { schemaTask, logger } from "@trigger.dev/sdk/v3";
 import { z } from "zod";
 import { extractMp3FromVideo } from "../utils/ffmpeg";
-import { downloadVideoTask } from "./download";
+import { downloadVideoTask } from "./downloadVideo";
 import { uploadFileToS3 } from "../utils/s3";
 
 export const convertToMp3Task = schemaTask({

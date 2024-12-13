@@ -16,7 +16,7 @@ export const transcribeAudioTask = schemaTask({
   }),
   run: async (input, { ctx }) => {
     const { audioUrl } = input;
-    logger.info("Starting transcription with Deepgram", { audioUrl });
+    logger.info("Starting transcription with Deepgram", { audioUrl, timestamp: new Date().toISOString() });
 
     try {
       const response = await transcribeUrl(audioUrl);
@@ -25,6 +25,7 @@ export const transcribeAudioTask = schemaTask({
         logger.error("Deepgram transcription failed", {
           status: response.error.status,
           statusText: response.error.message,
+          timestamp: new Date().toISOString(),
         });
         throw new Error(`Deepgram request failed with status ${response.error.status}`);
       }
@@ -34,6 +35,7 @@ export const transcribeAudioTask = schemaTask({
       const metadata = transcriptionResult?.metadata;
       logger.info("Transcription received", {
         transcriptSnippet: transcriptionResult?.results?.channels?.[0]?.alternatives?.[0]?.transcript?.slice(0, 50),
+        timestamp: new Date().toISOString(),
       });
 
       // Upload the transcription as a JSON file to S3
@@ -42,11 +44,11 @@ export const transcribeAudioTask = schemaTask({
         Buffer.from(JSON.stringify(transcriptionResult)),
         "application/json"
       );
-      logger.info("Transcription uploaded to S3", { s3Url });
+      logger.info("Transcription uploaded to S3", { s3Url, timestamp: new Date().toISOString() });
 
       return { transcriptionUrl: s3Url };
     } catch (error: any) {
-      logger.error("Error during transcription", { error: error.message });
+      logger.error("Error during transcription", { error: error.message, timestamp: new Date().toISOString() });
       throw new Error("Transcription failed");
     }
   },

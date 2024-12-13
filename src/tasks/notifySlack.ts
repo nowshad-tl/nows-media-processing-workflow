@@ -18,7 +18,7 @@ export const notifySlackTask = schemaTask({
   run: async (input, { ctx }) => {
     const { tenantId, projectId, transcriptionJsonUrl, srtUrl, mp3Url } = input;
 
-    logger.info("Sending Slack notification", { tenantId, projectId });
+    logger.info("Sending Slack notification", { tenantId, projectId, timestamp: new Date().toISOString() });
 
     const messageBlocks = [
       {
@@ -81,12 +81,13 @@ export const notifySlackTask = schemaTask({
     if (!response.ok) {
       logger.error("Failed to send Slack notification", {
         status: response.status,
-        statusText: response.statusText
+        statusText: response.statusText,
+        timestamp: new Date().toISOString()
       });
       throw new Error("Slack notification failed");
     }
 
-    logger.info("Slack notification sent successfully");
+    logger.info("Slack notification sent successfully", { timestamp: new Date().toISOString() });
     return { status: "sent" };
   },
 });

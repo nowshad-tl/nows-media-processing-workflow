@@ -1,9 +1,6 @@
 // src/utils/ffmpeg.ts
-import ffmpegInstaller from "@ffmpeg-installer/ffmpeg";
 import ffmpeg from "fluent-ffmpeg";
 import { PassThrough } from "stream";
-
-ffmpeg.setFfmpegPath(ffmpegInstaller.path);
 
 export async function extractMp3FromVideo(videoBuffer: Buffer): Promise<{
   mp3Buffer: Buffer;

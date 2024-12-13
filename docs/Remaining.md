@@ -1,0 +1,4 @@
+- Proper error handling
+- Proper logging
+- SRT generation using utterance 
+- Refactor code for better usage
