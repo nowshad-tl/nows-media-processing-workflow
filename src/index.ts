@@ -1,14 +1,21 @@
-import { logger, task } from "@trigger.dev/sdk/v3";
-import { downloadVideoTask } from "./tasks/download";
-import { MediaProcessingRequest } from "./models/media-processing-request";
+import { logger, schemaTask } from "@trigger.dev/sdk/v3";
 import { convertToMp3Task } from "./tasks/convert";
+import { transcribeAudioTask } from "./tasks/transcribe";
+import { generateSrtTask } from "./tasks/generateSRT";
+import { z } from "zod";
+import { notifySlackTask } from "./tasks/notifySlack";
 
-export const processVideoTask = task({
+export const processVideoTask = schemaTask({
   id: "process-video",
   // Stop execution if it runs longer than 5 minutes
   maxDuration: 300,
-  run: async (payload: MediaProcessingRequest, { ctx }) => {
-    const { videoUrl } = payload;
+  schema: z.object({
+    videoUrl: z.string(), // The S3 object key of the MP3 file
+    tenantId: z.string(),
+    projectId: z.string(),
+  }),
+  run: async (payload, { ctx }) => {
+    const { videoUrl, tenantId, projectId } = payload;
 
     logger.info("Processing video", { videoUrl });
 
@@ -33,14 +40,49 @@ export const processVideoTask = task({
         return { status: "failed", reason: "Failed to convert video to MP3" };
       }
 
-      const mp3Base64 = convertResult.output.mp3Base64;
+      const mp3File = convertResult.output.mp3File;
       const duration = convertResult.output.duration;
 
-      logger.info("Video converted to MP3 successfully", { mp3Base64, duration });  
+      if(!mp3File) {
+        logger.error("Failed to convert video to MP3", { convertResult });
+        return { status: "failed", reason: "Failed to convert video to MP3" };
+      }
 
-      // Continue with further processing steps here...
+      logger.info("Video converted to MP3 successfully", { mp3File, duration });  
 
-      return { status: "success", mp3Base64, duration };
+      const transcriptionResult = await transcribeAudioTask.triggerAndWait({ audioUrl: mp3File });
+      if (!transcriptionResult.ok) {
+        logger.error("Failed to transcribe audio", { transcriptionResult });
+        return { status: "failed", reason: "Failed to transcribe audio" };
+      }
+
+      const transcription = transcriptionResult.output;
+
+      logger.info("Audio transcribed successfully", { transcription });
+
+      const srtResult = await generateSrtTask.triggerAndWait({ transcriptionUrl: transcription.transcriptionUrl });
+      if (!srtResult.ok) {
+        logger.error("Failed to generate SRT", { srtResult });
+        return { status: "failed", reason: "Failed to generate SRT" };
+      }
+
+      const srtUrl = srtResult.output.srtUrl;
+      logger.info("SRT generated successfully", { srtUrl });
+
+      const notifySlackResult = await notifySlackTask.triggerAndWait({
+        tenantId,
+        projectId,
+        transcriptionJsonUrl: transcription.transcriptionUrl,
+        srtUrl: srtUrl,
+        mp3Url: mp3File,
+      });
+
+      if (!notifySlackResult.ok) {
+        logger.error("Failed to notify Slack", { notifySlackResult });
+        return { status: "failed", reason: "Failed to notify Slack" };
+      }
+
+      return { status: "success", mp3File, duration, transcription };
     } catch (error) {
       logger.error("Error during video download", { error });
       return { status: "failed", reason: "Error during video download" };

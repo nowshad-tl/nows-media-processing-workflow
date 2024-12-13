@@ -10,7 +10,7 @@ export const convertToMp3Task = schemaTask({
   schema: z.object({
     videoUrl: z.string(),
   }),
-  run: async (input, { ctx }) : Promise<{ mp3Base64?: string, duration?: number, status: string, reason?: string }> => {
+  run: async (input, { ctx }) : Promise<{ mp3File?: string, duration?: number, status: string, reason?: string }> => {
     const { videoUrl } = input;
     logger.info("Starting audio extraction from video", { videoUrl });
 
@@ -29,13 +29,12 @@ export const convertToMp3Task = schemaTask({
 
     try {
       const { mp3Buffer, duration } = await extractMp3FromVideo(videoBuffer);
-      const mp3Base64 = mp3Buffer.toString("base64");
 
       logger.info("MP3 extraction successful", { duration, mp3Size: mp3Buffer.length });
 
       const s3Url = await uploadFileToS3('audio/converted.mp3', mp3Buffer, "audio/mp3");
       logger.info("MP3 uploaded to S3", { s3Url });
-      return { mp3Base64, duration, status: "success" };
+      return { mp3File: s3Url, duration, status: "success" };
     } catch (error: any) {
       logger.error("Failed to extract MP3 from video", { error: error.message });
       return { status: "failed", reason: "Failed to extract MP3 from video" };
