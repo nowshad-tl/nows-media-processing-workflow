@@ -1,14 +1,16 @@
-import * as http from "http";
+import { logger, task, wait } from "@trigger.dev/sdk/v3";
 
-const port = 3000;
-const hostname = "0.0.0.0";
+export const helloWorldTask = task({
+  id: "hello-world",
+  // Set an optional maxDuration to prevent tasks from running indefinitely
+  maxDuration: 300, // Stop executing after 300 secs (5 mins) of compute
+  run: async (payload: any, { ctx }) => {
+    logger.log("Hello, world!", { payload, ctx });
 
-const server = http.createServer((_req, res) => {
-  res.statusCode = 200;
-  res.setHeader("Content-Type", "text/plain");
-  res.end("Hello, World!\n");
-});
+    await wait.for({ seconds: 5 });
 
-server.listen(port, hostname, () => {
-  console.log(`Server running at http://${hostname}:${port}/`);
+    return {
+      message: "Hello, world!",
+    }
+  },
 });
